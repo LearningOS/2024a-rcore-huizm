@@ -14,12 +14,15 @@ mod switch;
 #[allow(clippy::module_inception)]
 mod task;
 
-use crate::config::MAX_APP_NUM;
+use crate::config::{MAX_APP_NUM, MAX_SYSCALL_NUM};
 use crate::loader::{get_num_app, init_app_cx};
 use crate::sync::UPSafeCell;
+// use crate::timer::get_time;
+// use alloc::borrow::ToOwned;
 use lazy_static::*;
 use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
+use crate::timer::get_time_ms;
 
 pub use context::TaskContext;
 
@@ -54,6 +57,8 @@ lazy_static! {
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
+            task_syscall_times: [0; MAX_SYSCALL_NUM],
+            task_start_time: 0,
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
@@ -80,6 +85,7 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let task0 = &mut inner.tasks[0];
         task0.task_status = TaskStatus::Running;
+        task0.task_start_time = get_time_ms();
         let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
         drop(inner);
         let mut _unused = TaskContext::zero_init();
@@ -122,6 +128,12 @@ impl TaskManager {
             let mut inner = self.inner.exclusive_access();
             let current = inner.current_task;
             inner.tasks[next].task_status = TaskStatus::Running;
+            
+            let task_start_time = &mut inner.tasks[next].task_start_time;
+            if *task_start_time == 0 {
+                *task_start_time = get_time_ms();
+            }
+
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
@@ -137,9 +149,52 @@ impl TaskManager {
     }
 }
 
-/// Run the first task in task list.
+// user added methods
+impl TaskManager {
+    fn get_current_task(&self) -> usize {
+        let inner = self.inner.exclusive_access();
+        inner.current_task
+    }
+
+    fn get_task_start_time(&self, id: usize) -> usize {
+        let inner = self.inner.exclusive_access();
+        inner.tasks[id].task_start_time
+    }
+
+    fn get_task_syscall_times(&self, id: usize) -> [u32; MAX_SYSCALL_NUM] {
+        let inner = self.inner.exclusive_access();
+        inner.tasks[id].task_syscall_times.clone()
+    }
+
+    fn increment_task_syscall_time(&self, id: usize, syscall: usize) {
+        let mut inner = self.inner.exclusive_access();
+        inner.tasks[id].task_syscall_times[syscall] += 1;
+    }
+}
+
+/// Get current task id
+pub fn get_current_task() -> usize {
+    TASK_MANAGER.get_current_task()
+}
+
+/// Get task start time
+pub fn get_task_start_time(id: usize) -> usize {
+    TASK_MANAGER.get_task_start_time(id)
+}
+
+/// Get task syscall times
+pub fn get_task_syscall_times(id: usize) -> [u32; MAX_SYSCALL_NUM] {
+    TASK_MANAGER.get_task_syscall_times(id)
+}
+
+/// Run the first task in task list
 pub fn run_first_task() {
     TASK_MANAGER.run_first_task();
+}
+
+/// Increment task syscall time
+pub fn increment_task_syscall_time(id: usize, syscall: usize) {
+    TASK_MANAGER.increment_task_syscall_time(id, syscall);
 }
 
 /// Switch current `Running` task to the task we have found,

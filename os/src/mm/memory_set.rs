@@ -380,6 +380,7 @@ bitflags! {
 }
 
 impl MapPermission {
+    /// Init MapPermission
     pub fn new(bits: u8) -> Self {
         Self {
             bits,

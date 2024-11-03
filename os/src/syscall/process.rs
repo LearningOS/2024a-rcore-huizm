@@ -151,7 +151,7 @@ pub fn sys_munmap(_start: usize, _len: usize) -> isize {
         start_vpn.step();
     };
 
-    task_dealloc_mem(get_current_task(), start_va, end_va)
+    task_dealloc_mem(get_current_task(), start_va)
 }
 
 /// change data segment size

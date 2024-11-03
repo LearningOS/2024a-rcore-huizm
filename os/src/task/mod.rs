@@ -193,7 +193,7 @@ impl TaskManager {
         0
     }
 
-    fn task_dealloc_mem(&self, id: usize, start_va: VirtAddr, end_va: VirtAddr) -> isize {
+    fn task_dealloc_mem(&self, id: usize, start_va: VirtAddr) -> isize {
         let mut inner = self.inner.exclusive_access();
         let memset = &mut inner.tasks[id].memory_set;
 
@@ -210,8 +210,8 @@ pub fn task_alloc_mem(id: usize, start_va: VirtAddr, end_va: VirtAddr, permissio
 }
 
 /// Task deallocate memory
-pub fn task_dealloc_mem(id: usize, start_va: VirtAddr, end_va: VirtAddr) -> isize {
-    TASK_MANAGER.task_dealloc_mem(id, start_va, end_va)
+pub fn task_dealloc_mem(id: usize, start_va: VirtAddr) -> isize {
+    TASK_MANAGER.task_dealloc_mem(id, start_va)
 }
 
 /// Get current task id
@@ -224,7 +224,7 @@ pub fn get_task_start_time(id: usize) -> usize {
     TASK_MANAGER.get_task_start_time(id)
 }
 
-// Get task syscall times
+/// Get task syscall times
 pub fn get_task_syscall_times(id: usize) -> [u32; MAX_SYSCALL_NUM] {
     TASK_MANAGER.get_task_syscall_times(id)
 }

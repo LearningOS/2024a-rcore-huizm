@@ -23,6 +23,8 @@ use switch::__switch;
 pub use task::{TaskControlBlock, TaskStatus};
 
 pub use context::TaskContext;
+use crate::config::MAX_SYSCALL_NUM;
+use crate::timer::get_time_ms;
 
 /// The task manager, where all the tasks are managed.
 ///
@@ -79,6 +81,7 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         let next_task = &mut inner.tasks[0];
         next_task.task_status = TaskStatus::Running;
+        next_task.task_start_time = get_time_ms();
         let next_task_cx_ptr = &next_task.task_cx as *const TaskContext;
         drop(inner);
         let mut _unused = TaskContext::zero_init();
@@ -140,6 +143,12 @@ impl TaskManager {
             let mut inner = self.inner.exclusive_access();
             let current = inner.current_task;
             inner.tasks[next].task_status = TaskStatus::Running;
+
+            let task_start_time = &mut inner.tasks[next].task_start_time;
+            if *task_start_time == 0 {
+                *task_start_time = get_time_ms();
+            }
+
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
             let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
@@ -153,6 +162,49 @@ impl TaskManager {
             panic!("All applications completed!");
         }
     }
+}
+
+// user added methods
+impl TaskManager {
+    fn get_current_task(&self) -> usize {
+        let inner = self.inner.exclusive_access();
+        inner.current_task
+    }
+
+    fn get_task_start_time(&self, id: usize) -> usize {
+        let inner = self.inner.exclusive_access();
+        inner.tasks[id].task_start_time
+    }
+
+    fn get_task_syscall_times(&self, id: usize) -> [u32; MAX_SYSCALL_NUM] {
+        let inner = self.inner.exclusive_access();
+        inner.tasks[id].task_syscall_time.clone()
+    }
+
+    fn increment_task_syscall_time(&self, id: usize, syscall: usize) {
+        let mut inner = self.inner.exclusive_access();
+        inner.tasks[id].task_syscall_time[syscall] += 1;
+    }
+}
+
+/// Get current task id
+pub fn get_current_task() -> usize {
+    TASK_MANAGER.get_current_task()
+}
+
+/// Get task start time
+pub fn get_task_start_time(id: usize) -> usize {
+    TASK_MANAGER.get_task_start_time(id)
+}
+
+// Get task syscall times
+pub fn get_task_syscall_times(id: usize) -> [u32; MAX_SYSCALL_NUM] {
+    TASK_MANAGER.get_task_syscall_times(id)
+}
+
+/// Increment task syscall time
+pub fn increment_task_syscall_time(id: usize, syscall: usize) {
+    TASK_MANAGER.increment_task_syscall_time(id, syscall);
 }
 
 /// Run the first task in task list.

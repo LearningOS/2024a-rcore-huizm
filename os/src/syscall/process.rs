@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 
 use crate::{
     config::MAX_SYSCALL_NUM, mm::{translated_byte_buffer, MapPermission, PageTable, StepByOne, VirtAddr}, task::{
-        change_program_brk, current_user_token, exit_current_and_run_next, get_current_task, get_task_start_time, get_task_syscall_times, suspend_current_and_run_next, task_alloc_mem, TaskStatus
+        change_program_brk, current_user_token, exit_current_and_run_next, get_current_task, get_task_start_time, get_task_syscall_times, suspend_current_and_run_next, task_alloc_mem, task_dealloc_mem, TaskStatus
     }, timer::{get_time_ms, get_time_us}
 };
 
@@ -89,7 +89,7 @@ pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
 
 // YOUR JOB: Implement mmap.
 pub fn sys_mmap(_start: usize, _len: usize, _prot: usize) -> isize {
-    trace!("kernel: sys_mmap NOT IMPLEMENTED YET!");
+    trace!("kernel: sys_mmap");
     
     let start_va = VirtAddr::from(_start);
     let end_va = VirtAddr::from(_start + _len);
@@ -124,9 +124,36 @@ pub fn sys_mmap(_start: usize, _len: usize, _prot: usize) -> isize {
 
 // YOUR JOB: Implement munmap.
 pub fn sys_munmap(_start: usize, _len: usize) -> isize {
-    trace!("kernel: sys_munmap NOT IMPLEMENTED YET!");
-    -1
+    trace!("kernel: sys_munmap");
+
+    let start_va = VirtAddr::from(_start);
+    let end_va = VirtAddr::from(_start + _len);
+
+    // `_start` must align by page size
+    if !start_va.aligned() {
+        return -1;
+    }
+
+    let page_table = PageTable::from_token(current_user_token());
+    let mut start_vpn = start_va.floor();
+    let end_vpn = end_va.ceil();
+
+    // fails when includes unmapped virtual memory
+    while start_vpn < end_vpn {
+        if let Some(pte) = page_table.translate(start_vpn) {
+            if !pte.is_valid() {
+                return -1;
+            }
+        } else {
+            return -1;
+        };
+
+        start_vpn.step();
+    };
+
+    task_dealloc_mem(get_current_task(), start_va, end_va)
 }
+
 /// change data segment size
 pub fn sys_sbrk(size: i32) -> isize {
     trace!("kernel: sys_sbrk");

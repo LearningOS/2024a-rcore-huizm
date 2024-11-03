@@ -192,11 +192,26 @@ impl TaskManager {
         inner.tasks[id].memory_set.insert_framed_area(start_va, end_va, permission);
         0
     }
+
+    fn task_dealloc_mem(&self, id: usize, start_va: VirtAddr, end_va: VirtAddr) -> isize {
+        let mut inner = self.inner.exclusive_access();
+        let memset = &mut inner.tasks[id].memory_set;
+
+        match memset.shrink_to(start_va, start_va) {
+            true => 0,
+            false => -1,
+        }
+    }
 }
 
 /// Task allocate memory
 pub fn task_alloc_mem(id: usize, start_va: VirtAddr, end_va: VirtAddr, permission: MapPermission) -> isize {
     TASK_MANAGER.task_alloc_mem(id, start_va, end_va, permission)
+}
+
+/// Task deallocate memory
+pub fn task_dealloc_mem(id: usize, start_va: VirtAddr, end_va: VirtAddr) -> isize {
+    TASK_MANAGER.task_dealloc_mem(id, start_va, end_va)
 }
 
 /// Get current task id

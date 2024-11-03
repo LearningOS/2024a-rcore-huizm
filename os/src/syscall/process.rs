@@ -3,8 +3,8 @@ use core::mem::size_of;
 use alloc::boxed::Box;
 
 use crate::{
-    config::MAX_SYSCALL_NUM, mm::translated_byte_buffer, task::{
-        change_program_brk, current_user_token, exit_current_and_run_next, get_current_task, get_task_start_time, get_task_syscall_times, suspend_current_and_run_next, TaskStatus
+    config::MAX_SYSCALL_NUM, mm::{translated_byte_buffer, MapPermission, PageTable, StepByOne, VirtAddr}, task::{
+        change_program_brk, current_user_token, exit_current_and_run_next, get_current_task, get_task_start_time, get_task_syscall_times, suspend_current_and_run_next, task_alloc_mem, TaskStatus
     }, timer::{get_time_ms, get_time_us}
 };
 
@@ -88,9 +88,38 @@ pub fn sys_task_info(_ti: *mut TaskInfo) -> isize {
 }
 
 // YOUR JOB: Implement mmap.
-pub fn sys_mmap(_start: usize, _len: usize, _port: usize) -> isize {
+pub fn sys_mmap(_start: usize, _len: usize, _prot: usize) -> isize {
     trace!("kernel: sys_mmap NOT IMPLEMENTED YET!");
-    -1
+    
+    let start_va = VirtAddr::from(_start);
+    let end_va = VirtAddr::from(_start + _len);
+
+    // `_start` must align by page size
+    if !start_va.aligned() {
+        return -1;
+    }
+
+    // `_prot` must satisfy conditions
+    if _prot & !0x7 != 0 || _prot & 0x7 == 0 {
+        return -1;
+    }
+
+    let page_table = PageTable::from_token(current_user_token());
+    let mut start_vpn = start_va.floor();
+    let end_vpn = end_va.ceil();
+
+    while start_vpn < end_vpn {
+        if let Some(pte) = page_table.translate(start_vpn) {
+            if pte.is_valid() {
+                // page already mapped
+                return -1;
+            }
+        };
+
+        start_vpn.step();
+    };
+    
+    task_alloc_mem(get_current_task(), start_va, end_va, MapPermission::new((_prot as u8 + 0x8) << 1))
 }
 
 // YOUR JOB: Implement munmap.

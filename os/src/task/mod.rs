@@ -25,6 +25,7 @@ pub use task::{TaskControlBlock, TaskStatus};
 pub use context::TaskContext;
 use crate::config::MAX_SYSCALL_NUM;
 use crate::timer::get_time_ms;
+use crate::mm::{MapPermission, VirtAddr};
 
 /// The task manager, where all the tasks are managed.
 ///
@@ -185,6 +186,17 @@ impl TaskManager {
         let mut inner = self.inner.exclusive_access();
         inner.tasks[id].task_syscall_time[syscall] += 1;
     }
+
+    fn task_alloc_mem(&self, id: usize, start_va: VirtAddr, end_va: VirtAddr, permission: MapPermission) -> isize {
+        let mut inner = self.inner.exclusive_access();
+        inner.tasks[id].memory_set.insert_framed_area(start_va, end_va, permission);
+        0
+    }
+}
+
+/// Task allocate memory
+pub fn task_alloc_mem(id: usize, start_va: VirtAddr, end_va: VirtAddr, permission: MapPermission) -> isize {
+    TASK_MANAGER.task_alloc_mem(id, start_va, end_va, permission)
 }
 
 /// Get current task id

@@ -379,6 +379,14 @@ bitflags! {
     }
 }
 
+impl MapPermission {
+    pub fn new(bits: u8) -> Self {
+        Self {
+            bits,
+        }
+    }
+}
+
 /// Return (bottom, top) of a kernel stack in kernel space.
 pub fn kernel_stack_position(app_id: usize) -> (usize, usize) {
     let top = TRAMPOLINE - app_id * (KERNEL_STACK_SIZE + PAGE_SIZE);

@@ -423,6 +423,15 @@ bitflags! {
     }
 }
 
+impl MapPermission {
+    /// Init MapPermission
+    pub fn new(bits: u8) -> Self {
+        Self {
+            bits,
+        }
+    }
+}
+
 /// remap test in kernel space
 #[allow(unused)]
 pub fn remap_test() {

@@ -57,6 +57,9 @@ pub fn suspend_current_and_run_next() {
 /// pid of usertests app in make run TEST=1
 pub const IDLE_PID: usize = 0;
 
+/// BigStride
+pub const BIG_STRIDE: isize = 114514;
+
 /// Exit the current 'Running' task and run the next task in task list.
 pub fn exit_current_and_run_next(exit_code: i32) {
     // take from Processor

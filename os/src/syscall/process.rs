@@ -1,13 +1,12 @@
 //! Process management syscalls
-use alloc::sync::Arc;
+use alloc:: sync::Arc;
 
 use crate::{
     config::MAX_SYSCALL_NUM,
     loader::get_app_data_by_name,
     mm::{translated_refmut, translated_str},
     task::{
-        add_task, current_task, current_user_token, exit_current_and_run_next,
-        suspend_current_and_run_next, TaskStatus,
+        add_task, current_task, current_user_token, exit_current_and_run_next, suspend_current_and_run_next, TaskControlBlock, TaskStatus
     },
 };
 
@@ -168,10 +167,27 @@ pub fn sys_sbrk(size: i32) -> isize {
 /// HINT: fork + exec =/= spawn
 pub fn sys_spawn(_path: *const u8) -> isize {
     trace!(
-        "kernel:pid[{}] sys_spawn NOT IMPLEMENTED",
+        "kernel:pid[{}] sys_spawn",
         current_task().unwrap().pid.0
     );
-    -1
+    let _path = translated_str(current_user_token(), _path);
+
+    if let Some(elf_data) = get_app_data_by_name(_path.as_str()) {
+        let proc = Arc::new(TaskControlBlock::new(elf_data));
+        let current_task = current_task().unwrap();
+        
+        let mut proc_inner = proc.inner_exclusive_access();
+        let mut current_inner = current_task.inner_exclusive_access();
+        
+        proc_inner.parent = Some(Arc::downgrade(&current_task));
+        current_inner.children.push(proc.clone());
+        
+        add_task(proc.clone());
+        proc.pid.0 as isize
+    } else {
+        // invalid file name
+        -1
+    }
 }
 
 // YOUR JOB: Set task priority.

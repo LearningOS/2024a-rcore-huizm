@@ -9,8 +9,7 @@ use crate::{
     fs::{open_file, OpenFlags},
     mm::{translated_byte_buffer, translated_refmut, translated_str, MapPermission, PageTable, StepByOne, VirtAddr},
     task::{
-        add_task, current_task, current_user_token, exit_current_and_run_next,
-        suspend_current_and_run_next, TaskStatus,
+        add_task, current_task, current_user_token, exit_current_and_run_next, suspend_current_and_run_next, TaskControlBlock, TaskStatus
     },
     timer::{get_time_ms, get_time_us},
 };
@@ -263,11 +262,28 @@ pub fn sys_sbrk(size: i32) -> isize {
 /// YOUR JOB: Implement spawn.
 /// HINT: fork + exec =/= spawn
 pub fn sys_spawn(_path: *const u8) -> isize {
+    let task = current_task().unwrap();
     trace!(
-        "kernel:pid[{}] sys_spawn NOT IMPLEMENTED",
-        current_task().unwrap().pid.0
+        "kernel:pid[{}] sys_spawn",
+        task.pid.0
     );
-    -1
+
+    let _path = translated_str(current_user_token(), _path);
+    if let Some(app_inode) = open_file(_path.as_str(), OpenFlags::RDONLY) {
+        let all_data = app_inode.read_all();
+        let child = Arc::new(TaskControlBlock::new(all_data.as_slice()));
+
+        let mut child_inner = child.inner_exclusive_access();
+        let mut parent_inner = task.inner_exclusive_access();
+
+        child_inner.parent = Some(Arc::downgrade(&task));
+        parent_inner.children.push(child.clone());
+
+        add_task(child.clone());
+        child.pid.0 as isize
+    } else {
+        -1
+    }
 }
 
 // YOUR JOB: Set task priority.

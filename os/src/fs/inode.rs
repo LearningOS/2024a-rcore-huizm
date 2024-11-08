@@ -124,6 +124,16 @@ pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     }
 }
 
+/// Create a hard link
+pub fn linkat(old_name: &str, new_name: &str) -> isize {
+    if let Some(inode_id) = ROOT_INODE.get_inode_id(old_name) {
+        ROOT_INODE.create_dirent(new_name, inode_id);
+        0
+    } else {
+        -1
+    }
+}
+
 impl File for OSInode {
     fn readable(&self) -> bool {
         self.readable

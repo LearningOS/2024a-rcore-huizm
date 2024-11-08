@@ -73,6 +73,13 @@ impl Inode {
             })
         })
     }
+    /// Get inode id by name
+    pub fn get_inode_id(&self, name: &str) -> Option<u32> {
+        let _fs = self.fs.lock();
+        self.read_disk_inode(|disk_inode| {
+            self.find_inode_id(name, disk_inode)
+        })
+    }
     /// Increase the size of a disk inode
     fn increase_size(
         &self,
@@ -138,6 +145,25 @@ impl Inode {
         )))
         // release efs lock automatically by compiler
     }
+
+    /// Create new DirEntry
+    pub fn create_dirent(&self, name: &str, inode_id: u32) {
+        let mut fs = self.fs.lock();
+        self.modify_disk_inode(|root_inode| {
+            // append file in the dirent
+            let file_count = (root_inode.size as usize) / DIRENT_SZ;
+            let new_size = (file_count + 1) * DIRENT_SZ;
+            // increase size
+            self.increase_size(new_size as u32, root_inode, &mut fs);
+            // write dirent
+            let dirent = DirEntry::new(name, inode_id);
+            root_inode.write_at(
+                file_count * DIRENT_SZ,
+                dirent.as_bytes(),
+                &self.block_device);
+        });
+    }
+
     /// List inodes under current inode
     pub fn ls(&self) -> Vec<String> {
         let _fs = self.fs.lock();

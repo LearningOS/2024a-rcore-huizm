@@ -4,15 +4,16 @@
 //!
 //! `UPSafeCell<OSInodeInner>` -> `OSInode`: for static `ROOT_INODE`,we
 //! need to wrap `OSInodeInner` into `UPSafeCell`
-use super::File;
+use super::{File, StatMode};
 use crate::drivers::BLOCK_DEVICE;
 use crate::mm::UserBuffer;
 use crate::sync::UPSafeCell;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bitflags::*;
-use easy_fs::{EasyFileSystem, Inode};
+use easy_fs::{EasyFileSystem, Inode, DiskInodeType};
 use lazy_static::*;
+use core::any::Any;
 
 /// inode in memory
 /// A wrapper around a filesystem inode
@@ -51,6 +52,26 @@ impl OSInode {
             v.extend_from_slice(&buffer[..len]);
         }
         v
+    }
+    
+    pub fn get_inode_type(&self) -> StatMode {
+        let inner = self.inner.exclusive_access();
+        match inner.inode.get_inode_type() {
+            DiskInodeType::Directory => StatMode::DIR,
+            DiskInodeType::File => StatMode::FILE,
+        }
+    }
+
+    pub fn get_inode_id(&self) -> u32 {
+        let inner = self.inner.exclusive_access();
+        
+        let (block_id, block_offset) = inner.inode.get_block_loc();
+        ROOT_INODE.get_inode_id_by_block_loc(block_id as u32, block_offset)
+    }
+
+    pub fn get_nlink(&self) -> u32 {
+        let inode_id = self.get_inode_id();
+        ROOT_INODE.nlink(inode_id)
     }
 }
 
@@ -164,5 +185,8 @@ impl File for OSInode {
             total_write_size += write_size;
         }
         total_write_size
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }

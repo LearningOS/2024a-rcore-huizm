@@ -1,5 +1,9 @@
 //! File and filesystem-related syscalls
-use crate::fs::{open_file, OpenFlags, Stat, linkat};
+use core::any::Any;
+use core::mem::size_of;
+use alloc::boxed::Box;
+
+use crate::fs::{linkat, open_file, unlinkat, File, OSInode, OpenFlags, Stat};
 use crate::mm::{translated_byte_buffer, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
 
@@ -76,12 +80,45 @@ pub fn sys_close(fd: usize) -> isize {
 }
 
 /// YOUR JOB: Implement fstat.
-pub fn sys_fstat(_fd: usize, _st: *mut Stat) -> isize {
+pub fn sys_fstat(fd: usize, st: *mut Stat) -> isize {
+    let task = current_task().unwrap();
     trace!(
-        "kernel:pid[{}] sys_fstat NOT IMPLEMENTED",
-        current_task().unwrap().pid.0
+        "kernel:pid[{}] sys_fstat",
+        task.pid.0
     );
-    -1
+
+    let inner = task.inner_exclusive_access();
+    if fd >= inner.fd_table.len() {
+        return -1;
+    };
+
+    let stat: *const u8;
+    if let Some(file) = &inner.fd_table[fd] {
+        if let Some(file) = file.clone().as_any().downcast_ref::<OSInode>() {
+            stat = Box::into_raw(Box::new(Stat {
+                dev: 0,
+                ino: file.get_inode_id() as u64,
+                mode: file.get_inode_type(),
+                nlink: file.get_nlink(),
+                pad: [0u64; 7],
+            })) as *const u8;
+        } else {
+            return -1;
+        };
+     } else {
+        return -1;
+    };
+    drop(inner);
+
+    let buffers = translated_byte_buffer(current_user_token(), st as *const u8, size_of::<Stat>());
+    let mut index = 0;
+    for buffer in buffers {
+        for byte in buffer {
+            *byte = unsafe { *stat.offset(index) };
+            index += 1;
+        };
+    };
+    0
 }
 
 /// YOUR JOB: Implement linkat.

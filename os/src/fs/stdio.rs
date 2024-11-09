@@ -3,6 +3,7 @@ use super::File;
 use crate::mm::UserBuffer;
 use crate::sbi::console_getchar;
 use crate::task::suspend_current_and_run_next;
+use core::any::Any;
 
 /// stdin file for getting chars from console
 pub struct Stdin;
@@ -39,6 +40,9 @@ impl File for Stdin {
     fn write(&self, _user_buf: UserBuffer) -> usize {
         panic!("Cannot write to stdin!");
     }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 impl File for Stdout {
@@ -56,5 +60,8 @@ impl File for Stdout {
             print!("{}", core::str::from_utf8(*buffer).unwrap());
         }
         user_buf.len()
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
     }
 }

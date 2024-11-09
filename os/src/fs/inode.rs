@@ -53,7 +53,7 @@ impl OSInode {
         }
         v
     }
-    
+    /// Get the inode type (directory or file)
     pub fn get_inode_type(&self) -> StatMode {
         let inner = self.inner.exclusive_access();
         match inner.inode.get_inode_type() {
@@ -61,14 +61,14 @@ impl OSInode {
             DiskInodeType::File => StatMode::FILE,
         }
     }
-
+    /// Get the inode ID
     pub fn get_inode_id(&self) -> u32 {
         let inner = self.inner.exclusive_access();
         
         let (block_id, block_offset) = inner.inode.get_block_loc();
         ROOT_INODE.get_inode_id_by_block_loc(block_id as u32, block_offset)
     }
-
+    /// Get the number of hard links to this inode
     pub fn get_nlink(&self) -> u32 {
         let inode_id = self.get_inode_id();
         ROOT_INODE.nlink(inode_id)

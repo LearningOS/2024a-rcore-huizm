@@ -280,8 +280,7 @@ impl Inode {
                     DIRENT_SZ,
                 );
                 if dirent.name() == name {
-                    dirent = DirEntry::new(dirent.name(), 0);
-                    disk_inode.write_at(DIRENT_SZ * i, dirent.as_bytes(), &self.block_device);
+                    disk_inode.write_at(DIRENT_SZ * i, DirEntry::empty().as_bytes(), &self.block_device);
                     return 0;
                 };
             };

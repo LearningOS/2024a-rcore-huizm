@@ -1,9 +1,8 @@
 //! File and filesystem-related syscalls
-use core::any::Any;
 use core::mem::size_of;
 use alloc::boxed::Box;
 
-use crate::fs::{linkat, open_file, unlinkat, File, OSInode, OpenFlags, Stat};
+use crate::fs::{linkat, open_file, unlinkat, OSInode, OpenFlags, Stat};
 use crate::mm::{translated_byte_buffer, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
 

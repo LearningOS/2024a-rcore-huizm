@@ -49,5 +49,5 @@ bitflags! {
     }
 }
 
-pub use inode::{list_apps, open_file, OSInode, OpenFlags, linkat};
+pub use inode::{list_apps, open_file, OSInode, OpenFlags, linkat, unlinkat};
 pub use stdio::{Stdin, Stdout};

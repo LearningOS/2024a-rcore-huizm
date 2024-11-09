@@ -155,6 +155,11 @@ pub fn linkat(old_name: &str, new_name: &str) -> isize {
     }
 }
 
+/// Remove a hard link
+pub fn unlinkat(name: &str) -> isize {
+    ROOT_INODE.unlink(name)
+}
+
 impl File for OSInode {
     fn readable(&self) -> bool {
         self.readable

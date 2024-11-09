@@ -123,10 +123,9 @@ pub fn sys_fstat(fd: usize, st: *mut Stat) -> isize {
 
 /// YOUR JOB: Implement linkat.
 pub fn sys_linkat(old_name: *const u8, new_name: *const u8) -> isize {
-    let task = current_task().unwrap();
     trace!(
         "kernel:pid[{}] sys_linkat",
-        task.pid.0
+        current_task().unwrap().pid.0
     );
     
     let token = current_user_token();
@@ -141,10 +140,12 @@ pub fn sys_linkat(old_name: *const u8, new_name: *const u8) -> isize {
 }
 
 /// YOUR JOB: Implement unlinkat.
-pub fn sys_unlinkat(_name: *const u8) -> isize {
+pub fn sys_unlinkat(name: *const u8) -> isize {
     trace!(
-        "kernel:pid[{}] sys_unlinkat NOT IMPLEMENTED",
+        "kernel:pid[{}] sys_unlinkat",
         current_task().unwrap().pid.0
     );
-    -1
+
+    let name = translated_str(current_user_token(), name);
+    unlinkat(name.as_str())
 }

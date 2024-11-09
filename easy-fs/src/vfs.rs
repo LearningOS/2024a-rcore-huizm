@@ -268,4 +268,24 @@ impl Inode {
         });        
         count
     }
+    /// Only root dir uses this
+    pub fn unlink(&self, name: &str) -> isize {
+        self.modify_disk_inode(|disk_inode| {
+            let file_count = (disk_inode.size as usize) / DIRENT_SZ;
+            let mut dirent = DirEntry::empty();
+
+            for i in 0..file_count {
+                assert_eq!(
+                    disk_inode.read_at(DIRENT_SZ * i, dirent.as_bytes_mut(), &self.block_device,),
+                    DIRENT_SZ,
+                );
+                if dirent.name() == name {
+                    dirent = DirEntry::new(dirent.name(), 0);
+                    disk_inode.write_at(DIRENT_SZ * i, dirent.as_bytes(), &self.block_device);
+                    return 0;
+                };
+            };
+            -1
+        })
+    }
 }

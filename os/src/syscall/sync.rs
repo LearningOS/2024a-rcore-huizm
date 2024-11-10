@@ -72,7 +72,13 @@ pub fn sys_mutex_lock(mutex_id: usize) -> isize {
     let process_inner = process.inner_exclusive_access();
     let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
     drop(process_inner);
+
+    // mutex deadlock detection
+    if process.is_deadlock_detect_enabled() && mutex.is_locked() {
+        return -0xdead;
+    };
     drop(process);
+
     mutex.lock();
     0
 }
@@ -245,7 +251,14 @@ pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
 /// enable deadlock detection syscall
 ///
 /// YOUR JOB: Implement deadlock detection, but might not all in this syscall
-pub fn sys_enable_deadlock_detect(_enabled: usize) -> isize {
-    trace!("kernel: sys_enable_deadlock_detect NOT IMPLEMENTED");
-    -1
+pub fn sys_enable_deadlock_detect(enabled: usize) -> isize {
+    trace!("kernel: sys_enable_deadlock_detect");
+
+    let process = current_process();
+    let mut process_inner = process.inner_exclusive_access();
+    match enabled {
+        0 => { process_inner.is_deadlock_detect_enabled = false; 0 },
+        1 => { process_inner.is_deadlock_detect_enabled = true; 0 },
+        _ => -1,
+    }
 }

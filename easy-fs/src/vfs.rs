@@ -265,7 +265,7 @@ impl Inode {
                     count += 1;
                 };
             };
-        });        
+        });
         count
     }
     /// Only root dir uses this

@@ -283,6 +283,19 @@ impl TaskControlBlock {
     }
 }
 
+/// Spawn a new task from the given ELF data.
+pub fn spawn(this: &Arc<TaskControlBlock>, elf_data: &[u8]) -> Arc<TaskControlBlock> {
+    let mut inner = this.inner_exclusive_access();
+    let child = Arc::new(TaskControlBlock::new(elf_data));
+
+    let mut child_inner = child.inner_exclusive_access();
+    child_inner.parent = Some(Arc::downgrade(this));
+    inner.children.push(child.clone());
+    drop(child_inner);
+
+    child
+}
+
 #[derive(Copy, Clone, PartialEq)]
 /// task status: UnInit, Ready, Running, Exited
 pub enum TaskStatus {
